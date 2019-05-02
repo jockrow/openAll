@@ -3,7 +3,7 @@
 #     Open masive Programs, Folders and files     #
 #     All Settings is in openAll.ini              #
 ###################################################
-import subprocess, json, os
+import subprocess, json, os, psutil, re
 
 try:
 	from configparser import ConfigParser
@@ -13,31 +13,33 @@ except ImportError:
 config = ConfigParser()
 config.read('openAll.ini')
 
-def decodeIni(str):
-	return json.loads(str.replace("\\", "/"))
+def runningProcess(processName):
+	return re.sub(r".*/", "", processName) in (p.name() for p in psutil.process_iter())
 
-#TODO:controlar cuando la carpeta o el archivo o el programa no existen
-#TODO:if list is empty not process
+def openList(typeKey):
+	list = json.loads(config.get(typeKey, typeKey + "_LIST").replace("\\", "/"))
+	if len(list) > 0:
+		print("OPENING " + typeKey + ":")
+		for x in list:
+			print("DEBUG:" + x)
+			message = ""
+			if typeKey == "APPS":
+				#TODO:check if proccess complete open next process
+				#DONE:Verificar si el programa ya está abierto
+				if runningProcess(x):
+					message = "CURRENT APP IS RUNNING:"
+				else:
+					subprocess.Popen(x)
+			else:
+				if not os.path.exists(x):
+					message = typeKey.replace("S", "") + " IS NOT EXISTS:"
+					#TODO:Verificar si el archivo ya está abierto
+					#message = "CURRENT " + typeKey + " IS OPENING:"
+				else:
+					os.startfile("\"%s\"" % (x))
+			message += x
+			print(message)
 
-openingList = decodeIni(config.get("APPS", "APPS_LIST"))
-print("Opening Apps:")
-for x in openingList:
-	#TODO:Verificar si el programa ya está abierto
-	#TODO:check if proccess complete open next process
-	subprocess.Popen(x)
-	print(x)
-
-openingList = decodeIni(config.get("FOLDERS", "FOLDERS_LIST"))
-print("Opening Folders:")
-for x in openingList:
-	#TODO:Verificar si la carpeta ya está abierta
-	os.startfile("\"%s\"" % (x))
-	print(x)
-
-openingList = decodeIni(config.get("FILES", "FILES_LIST"))
-print("Opening Files:")
-for x in openingList:
-	#TODO:open with default app
-	#TODO:Verificar si el archivo ya está abierto
-	os.startfile("\"%s\"" % (x))
-	print(x)
+openList("APPS")
+openList("FOLDERS")
+openList("FILES")
